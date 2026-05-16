@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  gateway:
+    image: pivot/gateway:latest
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    depends_on:
+      - clickhouse
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "8123:8123"  # HTTP
+      - "9000:9000"  # Native
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    environment:
+      - CLICKHOUSE_DB=pivot
+      - CLICKHOUSE_USER=pivot
+      - CLICKHOUSE_PASSWORD=pivot
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=pivot
+      - POSTGRES_USER=pivot
+      - POSTGRES_PASSWORD=pivot
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  console:
+    image: pivot/console:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GATEWAY_URL=http://gateway:4318
+      - POSTGRES_URL=postgresql://pivot:pivot@postgres:5432/pivot
+    depends_on:
+      - gateway
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  clickhouse-data:
+  postgres-data:
+  redis-data:
+
+networks:
+  default:
+    name: pivot-network

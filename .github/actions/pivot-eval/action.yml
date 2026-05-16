@@ -1,0 +1,101 @@
+name: 'Pivot Evaluation'
+description: 'Run Pivot agent evaluations in CI/CD'
+author: 'Pivot AI'
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  task:
+    description: 'Path to task YAML file'
+    required: true
+  baseline:
+    description: 'Baseline branch to compare against'
+    required: false
+    default: 'main'
+  threshold:
+    description: 'Minimum score threshold (0.0-1.0)'
+    required: false
+    default: '0.95'
+  pivot-endpoint:
+    description: 'Pivot gateway endpoint'
+    required: false
+    default: 'http://localhost:4317'
+
+outputs:
+  score:
+    description: 'Evaluation score'
+  passed:
+    description: 'Whether evaluation passed threshold'
+  report-url:
+    description: 'URL to detailed report'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Pivot SDK
+      shell: bash
+      run: |
+        pip install pivot-sdk
+
+    - name: Run Evaluation
+      shell: bash
+      run: |
+        pivot eval run \
+          --task ${{ inputs.task }} \
+          --baseline ${{ inputs.baseline }} \
+          --threshold ${{ inputs.threshold }} \
+          --endpoint ${{ inputs.pivot-endpoint }} \
+          --output eval-results.json
+
+    - name: Check Threshold
+      shell: bash
+      run: |
+        SCORE=$(jq -r '.score' eval-results.json)
+        THRESHOLD=${{ inputs.threshold }}
+
+        echo "score=$SCORE" >> $GITHUB_OUTPUT
+
+        if (( $(echo "$SCORE >= $THRESHOLD" | bc -l) )); then
+          echo "passed=true" >> $GITHUB_OUTPUT
+          echo "✅ Evaluation passed: $SCORE >= $THRESHOLD"
+        else
+          echo "passed=false" >> $GITHUB_OUTPUT
+          echo "❌ Evaluation failed: $SCORE < $THRESHOLD"
+          exit 1
+        fi
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const results = JSON.parse(fs.readFileSync('eval-results.json', 'utf8'));
+
+          const body = `## 🤖 Pivot Evaluation Results
+
+          **Score:** ${results.score.toFixed(3)}
+          **Threshold:** ${{ inputs.threshold }}
+          **Status:** ${results.score >= ${{ inputs.threshold }} ? '✅ Passed' : '❌ Failed'}
+
+          ### Details
+          - **Task:** ${{ inputs.task }}
+          - **Baseline:** ${{ inputs.baseline }}
+          - **Runs:** ${results.num_runs}
+
+          [View detailed report](${results.report_url})
+          `;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });

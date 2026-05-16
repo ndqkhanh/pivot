@@ -1,0 +1,35 @@
+apiVersion: v2
+name: pivot
+description: Pivot AI Agent Reliability Platform
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+keywords:
+  - ai
+  - agents
+  - reliability
+  - observability
+  - evaluation
+
+home: https://github.com/ndqkhanh/pivot
+sources:
+  - https://github.com/ndqkhanh/pivot
+
+maintainers:
+  - name: Pivot AI
+    email: hello@pivot.ai
+
+dependencies:
+  - name: clickhouse
+    version: "^4.0.0"
+    repository: https://charts.clickhouse.com
+    condition: clickhouse.enabled
+  - name: postgresql
+    version: "^13.0.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "^18.0.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled

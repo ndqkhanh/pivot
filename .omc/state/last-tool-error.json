@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd projects/pivot && git push origin master\",\"description\":\"Push to GitHub\"}",
+  "error": "Exit code 1\n(eval):cd:1: no such file or directory: projects/pivot",
+  "timestamp": "2026-05-16T15:44:05.109Z",
+  "retry_count": 4
+}
